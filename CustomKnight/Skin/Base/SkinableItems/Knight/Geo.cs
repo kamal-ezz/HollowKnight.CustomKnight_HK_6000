@@ -26,8 +26,15 @@ namespace CustomKnight
             {
                 material.mainTexture = geoTexture;
             }
-            On.GeoControl.Start -= GeoControl_Start;
-            orig(self);
+            try
+            {
+                orig(self);
+            }
+            finally
+            {
+                // Removing the hook invalidates its orig delegate in MonoMod 25.
+                On.GeoControl.Start -= GeoControl_Start;
+            }
         }
 
         public override Material GetMaterial()

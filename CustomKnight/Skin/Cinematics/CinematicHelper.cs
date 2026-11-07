@@ -1,4 +1,4 @@
-﻿using MonoMod.RuntimeDetour.HookGen;
+﻿using MonoMod.RuntimeDetour;
 using UnityEngine.Video;
 using TeamCherry.Cinematics;
 
@@ -25,12 +25,25 @@ namespace CustomKnight.Skin.Cinematics
 #pragma warning restore CS0649 // Field 'CinematicHelper.Delegates.Params_get_EmbeddedVideoClip.self' is never assigned to, and will always have its default value null
             }
         }
+        private static readonly List<KeyValuePair<Delegates.get_EmbeddedVideoClip_WithArgs, Hook>> videoClipHooks = new();
+
         public static event Delegates.get_EmbeddedVideoClip_WithArgs get_EmbeddedVideoClip
         {
-            add => HookEndpointManager.Add<Delegates.get_EmbeddedVideoClip_WithArgs>(
-                ReflectionHelper.GetMethodInfo(typeof(CinematicVideoReference), "get_EmbeddedVideoClip"), value);
-            remove => HookEndpointManager.Remove<Delegates.get_EmbeddedVideoClip_WithArgs>(
-                ReflectionHelper.GetMethodInfo(typeof(CinematicVideoReference), "get_EmbeddedVideoClip"), value);
+            add
+            {
+                if (value == null) return;
+                var hook = new Hook(
+                    ReflectionHelper.GetMethodInfo(typeof(CinematicVideoReference), "get_EmbeddedVideoClip"), value);
+                videoClipHooks.Add(new(value, hook));
+            }
+            remove
+            {
+                // Match event semantics when the same handler is added more than once.
+                int index = videoClipHooks.FindLastIndex(entry => entry.Key == value);
+                if (index < 0) return;
+                videoClipHooks[index].Value.Dispose();
+                videoClipHooks.RemoveAt(index);
+            }
         }
     }
 
