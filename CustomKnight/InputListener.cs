@@ -46,11 +46,20 @@ namespace CustomKnight
             {
                 if (System.Enum.TryParse(binding.Key.ToString(), out KeyCode keyCode))
                 {
-                    return Input.GetKeyDown(keyCode);
+                    return Input.GetKeyDown(keyCode) || IsMacDeleteKeyDown(keyCode);
                 }
             }
 
-            return Input.GetKeyDown(KeyCode.Delete);
+            return Input.GetKeyDown(KeyCode.Delete) || IsMacDeleteKeyDown(KeyCode.Delete);
+        }
+
+        // Mac keyboards label Backspace "delete" and only send Delete with fn, so on macOS
+        // accept that key for a Delete binding.
+        private static bool IsMacDeleteKeyDown(KeyCode boundKey)
+        {
+            return boundKey == KeyCode.Delete
+                && Application.platform == RuntimePlatform.OSXPlayer
+                && Input.GetKeyDown(KeyCode.Backspace);
         }
     }
 }
