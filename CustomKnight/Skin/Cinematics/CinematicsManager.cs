@@ -50,7 +50,6 @@ namespace CustomKnight
         internal static void Hook()
         {
             On.CinematicSequence.Update += CinematicSequence_Update;
-            CinematicHelper.get_EmbeddedVideoClip += WithOrig_get_EmbeddedVideoClip;
 
             MethodInfo mi = typeof(CinematicVideoPlayer).GetMethod(
                 "Create",
@@ -92,34 +91,43 @@ namespace CustomKnight
       CinematicVideoPlayerConfig config)
         {
             var player = orig(config);
-            if (player is EmbeddedCinematicVideoPlayer embedded)
+            if (player is not EmbeddedCinematicVideoPlayer embedded)
             {
-                VideoPlayer source =
-                    ReflectionHelper.GetField<EmbeddedCinematicVideoPlayer, VideoPlayer>(embedded, "videoPlayer");
-                if (source?.clip != null)
-                {
-                    foreach (var cinematicKvp in Cinematics)
-                    {
-                        if (cinematicKvp.Value.OriginalVideo != null &&
-                            (cinematicKvp.Value.OriginalVideo.originalPath == source.clip.originalPath))
-                        {
-                            cinematicKvp.Value.player = embedded;
-                            if (SkinManager.GetCurrentSkin().HasCinematic(cinematicKvp.Value.ClipName))
-                            {
-                                source.clip = null;
-                                source.url = SkinManager.GetCurrentSkin().GetCinematicUrl(cinematicKvp.Value.ClipName);
-                                source.Prepare();
-                            }
-                            else if (HasCinematic(cinematicKvp.Value.ClipName))
-                            {
-                                source.clip = null;
-                                source.url = GetCinematicUrl(cinematicKvp.Value.ClipName);
-                                source.Prepare();
-                            }
-                        }
-                    }
-                }
+                return player;
             }
+
+            // Cinematics are streamed from StreamingAssets/<VideoFileName>.<ext>, so the file name
+            // identifies which cinematic is playing.
+            string videoFileName = config?.VideoReference?.VideoFileName;
+            if (videoFileName == null || !GetCiematicSafely(videoFileName, out var cinematic))
+            {
+                return player;
+            }
+            cinematic.player = embedded;
+
+            string replacementUrl = null;
+            if (SkinManager.GetCurrentSkin().HasCinematic(cinematic.ClipName))
+            {
+                replacementUrl = SkinManager.GetCurrentSkin().GetCinematicUrl(cinematic.ClipName);
+            }
+            else if (HasCinematic(cinematic.ClipName))
+            {
+                replacementUrl = GetCinematicUrl(cinematic.ClipName);
+            }
+            if (replacementUrl == null)
+            {
+                return player;
+            }
+
+            VideoPlayer source =
+                ReflectionHelper.GetField<EmbeddedCinematicVideoPlayer, VideoPlayer>(embedded, "videoPlayer");
+            if (source == null)
+            {
+                return player;
+            }
+            source.clip = null;
+            source.url = replacementUrl;
+            source.Prepare();
             return player;
         }
 
@@ -163,20 +171,6 @@ namespace CustomKnight
                 }
             }
             orig(self);
-        }
-
-        private static VideoClip WithOrig_get_EmbeddedVideoClip(Func<CinematicVideoReference, UnityEngine.Video.VideoClip> orig, CinematicVideoReference self)
-        {
-            if (GetCiematicSafely(self.VideoFileName, out var cinematic))
-            {
-                var originalVideo = orig(self);
-                if (originalVideo != null)
-                {
-                    cinematic.OriginalVideo = originalVideo;
-                }
-                return cinematic.OriginalVideo;
-            }
-            return orig(self);
         }
     }
 }

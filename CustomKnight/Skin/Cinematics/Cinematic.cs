@@ -1,5 +1,4 @@
 
-using UnityEngine.Video;
 using TeamCherry.Cinematics;
 
 namespace CustomKnight
@@ -13,7 +12,6 @@ namespace CustomKnight
         /// Name of the current Cinematic
         /// </summary>
         public string ClipName { get; private set; }
-        internal VideoClip OriginalVideo = null;
         internal EmbeddedCinematicVideoPlayer player = null;
         /// <summary>
         /// Ctor
